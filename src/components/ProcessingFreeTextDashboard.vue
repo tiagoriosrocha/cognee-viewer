@@ -130,7 +130,7 @@
             <v-icon class="mr-2">mdi-information</v-icon>
             Detalhes do Nó
           </v-card-title>
-          <v-card-text>
+          <v-card-text class="card-text-scroll-nodes-list">
             <v-list dense>
               <v-list-item
                 v-for="(value, key) in selectedNode"
@@ -141,7 +141,9 @@
                   {{ key }}:
                 </v-list-item-title>
                 <v-list-item-subtitle class="wrap-text">
-                  {{ typeof value === "object" ? JSON.stringify(value) : value }}
+                  {{
+                    typeof value === "object" ? JSON.stringify(value) : value
+                  }}
                 </v-list-item-subtitle>
               </v-list-item>
             </v-list>
@@ -195,7 +197,8 @@
                     v-for="(node, key) in graphData.nodes"
                     :key="node.id"
                     :class="{
-                      'selected-row': selectedNode && selectedNode.id === node.id,
+                      'selected-row':
+                        selectedNode && selectedNode.id === node.id,
                     }"
                   >
                     <td>{{ key }}</td>
@@ -220,6 +223,34 @@
         </v-card>
       </v-col>
     </v-row>
+
+    <v-snackbar
+      v-model="snackbar"
+      :timeout="3000"
+      :color="snackbarColor"
+      location="bottom"
+    >
+      <div class="d-flex align-center w-100">
+        <span>{{ snackbarMessage }}</span>
+        <v-spacer></v-spacer>
+        <v-icon color="white">fa-solid fa-check</v-icon>
+      </div>
+    </v-snackbar>
+
+    <v-snackbar
+      v-model="processingSnackbar"
+      color="info"
+      location="bottom"
+      :timeout="-1"
+    >
+      Processando a requisição, por favor aguarde... ({{ elapsed }}s)
+      <v-progress-circular
+        indeterminate
+        color="white"
+        class="ml-4"
+        size="20"
+      ></v-progress-circular>
+    </v-snackbar>
   </v-container>
 </template>
 
@@ -298,12 +329,11 @@ export default {
 
       // Regras de validação do formulário
       questionRules: [
-        (v) => !!v || "Pergunta é obrigatória",
-        (v) => (v && v.length >= 10) || "Pergunta deve ter pelo menos 10 caracteres",
+        v => !!v || "Pergunta é obrigatória",
+        v =>
+          (v && v.length >= 10) || "Pergunta deve ter pelo menos 10 caracteres",
       ],
-      processingTypeRules: [
-        (v) => !!v || "Tipo de processamento é obrigatório",
-      ],
+      processingTypeRules: [v => !!v || "Tipo de processamento é obrigatório"],
     };
   },
 
@@ -315,7 +345,10 @@ export default {
     async processar() {
       // Validar formulário
       if (!this.formValid) {
-        this.showSnackbar("Por favor, preencha todos os campos obrigatórios.", "error");
+        this.showSnackbar(
+          "Por favor, preencha todos os campos obrigatórios.",
+          "error"
+        );
         return;
       }
 
@@ -331,7 +364,9 @@ export default {
       const payload = {
         selectedQuestion: {
           question: this.formData.question,
-          context: this.formData.context ? [["Contexto", [this.formData.context]]] : [],
+          context: this.formData.context
+            ? [["Contexto", [this.formData.context]]]
+            : [],
           answer: "", // Será preenchido pelo servidor
           no_of_hops: 0,
           reasoning_type: "free_text",
@@ -342,7 +377,8 @@ export default {
 
       try {
         // 1. FAZER A REQUISIÇÃO PARA INICIAR O PROCESSO NO SERVIDOR
-        const baseUrl = process.env.VUE_APP_API_BASE_URL || "http://localhost:5001";
+        const baseUrl =
+          process.env.VUE_APP_API_BASE_URL || "http://localhost:5001";
         const response = await fetch(`${baseUrl}/runquestion`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -382,7 +418,8 @@ export default {
       // Verificar o status a cada 5 segundos
       this.pollingInterval = setInterval(async () => {
         try {
-          const baseUrl = process.env.VUE_APP_API_BASE_URL || "http://localhost:5001";
+          const baseUrl =
+            process.env.VUE_APP_API_BASE_URL || "http://localhost:5001";
           const response = await fetch(`${baseUrl}/status/${taskId}`);
 
           // Verificar se a requisição foi bem-sucedida

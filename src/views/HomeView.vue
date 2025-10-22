@@ -28,19 +28,17 @@
           hover
           @click="navigateToDashboard"
         >
-          <v-icon size="64" color="primary" class="mb-4">
-            mdi-view-dashboard
-          </v-icon>
-          <h3 class="text-h5 font-weight-bold mb-3">Dashboard</h3>
+          <v-icon size="64" color="primary" class="mb-4">mdi-graph</v-icon>
+          <h3 class="text-h5 font-weight-bold mb-3">Comparar Grafos</h3>
           <p class="text-body-1 text-grey-darken-1 mb-4">
-            Acesse o painel principal para visualizar e analisar perguntas
+            Compare diferentes grafos de processamento e análise
           </p>
           <v-btn
             color="primary"
             variant="outlined"
             @click="navigateToDashboard"
           >
-            Acessar Dashboard
+            Comparar Grafos
           </v-btn>
         </v-card>
       </v-col>
@@ -53,7 +51,9 @@
           hover
           @click="navigateToFreeText"
         >
-          <v-icon size="64" color="secondary" class="mb-4"> mdi-text-box-plus </v-icon>
+          <v-icon size="64" color="secondary" class="mb-4">
+            mdi-text-box-plus
+          </v-icon>
           <h3 class="text-h5 font-weight-bold mb-3">Texto Livre</h3>
           <p class="text-body-1 text-grey-darken-1 mb-4">
             Processe perguntas e contexto inseridos livremente
@@ -64,29 +64,6 @@
             @click="navigateToFreeText"
           >
             Processar Texto
-          </v-btn>
-        </v-card>
-      </v-col>
-
-      <!-- Card: Comparação de Grafos -->
-      <v-col cols="12" md="4">
-        <v-card
-          class="pa-6 text-center h-100"
-          elevation="2"
-          hover
-          @click="navigateToCompare"
-        >
-          <v-icon size="64" color="success" class="mb-4"> mdi-graph </v-icon>
-          <h3 class="text-h5 font-weight-bold mb-3">Comparar Grafos</h3>
-          <p class="text-body-1 text-grey-darken-1 mb-4">
-            Compare diferentes grafos de processamento e análise
-          </p>
-          <v-btn
-            color="success"
-            variant="outlined"
-            @click="navigateToCompare"
-          >
-            Comparar Grafos
           </v-btn>
         </v-card>
       </v-col>
@@ -104,7 +81,7 @@
           </v-icon>
           <h3 class="text-h5 font-weight-bold mb-3">Sobre o Projeto</h3>
           <p class="text-body-1 text-grey-darken-1 mb-4">
-            Conheça mais sobre o Cognee e suas funcionalidades
+            Conheça mais sobre o Projeto
           </p>
           <v-btn color="success" variant="outlined" @click="openAbout">
             Saiba Mais
@@ -114,6 +91,7 @@
     </v-row>
 
     <!-- Seção de estatísticas rápidas -->
+    <!--
     <v-row class="mt-8">
       <v-col cols="12">
         <v-card class="pa-6" elevation="1">
@@ -154,7 +132,7 @@
           </v-row>
         </v-card>
       </v-col>
-    </v-row>
+    </v-row> -->
   </v-container>
 </template>
 
