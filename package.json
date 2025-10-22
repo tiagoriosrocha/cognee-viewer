@@ -16,7 +16,7 @@
     "v-network-graph": "^0.9.21",
     "vue": "^3.2.13",
     "vue-router": "^4.6.3",
-    "vuetify": "^3.0.0-beta.0",
+    "vuetify": "^3.10.6",
     "vuex": "^4.0.0",
     "webfontloader": "^1.0.0"
   },
