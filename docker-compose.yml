@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # Serviço da aplicação Vue.js
+  vue-app:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    command: npm run serve
+    stdin_open: true
+    tty: true
+
+  # Serviço para API (exemplo)
+  api:
+    image: node:18-alpine
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./api:/app
+    working_dir: /app
+    command: npm start
+    environment:
+      - NODE_ENV=development
+    profiles:
+      - api

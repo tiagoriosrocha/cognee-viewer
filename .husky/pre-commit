@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Executar linter antes do commit
+npm run lint
+
+# Executar testes antes do commit
+npm run test:unit
+
+# Formatar código antes do commit
+npm run format

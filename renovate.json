@@ -1,0 +1,58 @@
+{
+  "extends": [
+    "config:base"
+  ],
+  "packageRules": [
+    {
+      "groupName": "Vue.js ecosystem",
+      "groupSlug": "vue-ecosystem",
+      "matchPackageNames": [
+        "vue",
+        "vue-router",
+        "vuex",
+        "@vue/cli-service",
+        "@vue/cli-plugin-babel",
+        "@vue/cli-plugin-eslint",
+        "@vue/cli-plugin-vuex"
+      ]
+    },
+    {
+      "groupName": "Vuetify ecosystem",
+      "groupSlug": "vuetify-ecosystem",
+      "matchPackageNames": [
+        "vuetify",
+        "vue-cli-plugin-vuetify",
+        "webpack-plugin-vuetify"
+      ]
+    },
+    {
+      "groupName": "Testing ecosystem",
+      "groupSlug": "testing-ecosystem",
+      "matchPackageNames": [
+        "@vue/test-utils",
+        "jest",
+        "vue-jest"
+      ]
+    },
+    {
+      "groupName": "Linting ecosystem",
+      "groupSlug": "linting-ecosystem",
+      "matchPackageNames": [
+        "eslint",
+        "prettier",
+        "@babel/eslint-parser",
+        "eslint-plugin-vue",
+        "eslint-config-prettier",
+        "eslint-plugin-prettier"
+      ]
+    }
+  ],
+  "schedule": [
+    "before 6am on monday"
+  ],
+  "timezone": "America/Sao_Paulo",
+  "prConcurrentLimit": 3,
+  "prHourlyLimit": 2,
+  "rangeStrategy": "bump",
+  "bumpVersion": "patch"
+}

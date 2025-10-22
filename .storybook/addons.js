@@ -1,0 +1,11 @@
+import '@storybook/addon-actions/register';
+import '@storybook/addon-links/register';
+import '@storybook/addon-notes/register';
+import '@storybook/addon-knobs/register';
+import '@storybook/addon-viewport/register';
+import '@storybook/addon-backgrounds/register';
+import '@storybook/addon-docs/register';
+import '@storybook/addon-controls/register';
+import '@storybook/addon-toolbars/register';
+import '@storybook/addon-measure/register';
+import '@storybook/addon-outline/register';

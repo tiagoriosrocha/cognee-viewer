@@ -1,0 +1,46 @@
+version: 2
+updates:
+  # Atualizações para dependências do npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "tiagoriosdarocha"
+    assignees:
+      - "tiagoriosdarocha"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "javascript"
+      - "vue"
+    ignore:
+      # Ignorar atualizações de versões major
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # Atualizações para GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "tiagoriosdarocha"
+    assignees:
+      - "tiagoriosdarocha"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
