@@ -26,7 +26,7 @@
             Nós Únicos - Grafo 1
           </v-card-title>
           <v-card-text class="text-h4 text-center pa-4">
-            {{ nodesOnlyA }}
+            {{ nodesOnlyA }} <span class="text-h6">de {{ totalNodesGraph1 }}</span>
           </v-card-text>
         </v-card>
       </v-col>
@@ -46,7 +46,7 @@
             Nós Únicos - Grafo 2
           </v-card-title>
           <v-card-text class="text-h4 text-center pa-4">
-            {{ nodesOnlyB }}
+            {{ nodesOnlyB }} <span class="text-h6">de {{ totalNodesGraph2 }}</span>
           </v-card-text>
         </v-card>
       </v-col>
@@ -66,367 +66,332 @@
                 setsData.length === 0 ||
                 (nodesOnlyA === 0 &&
                   nodesOnlyB === 0 &&
-                  nodesIntersection === 0)
+                  nodesIntersection === 0 &&
+                  totalNodesGraph1 === 0 &&
+                  totalNodesGraph2 === 0)
               "
               class="text-medium-emphasis"
             >
-              Não há dados para comparar. (Ambos os grafos podem ser vazios ou
-              idênticos).
+              Não há dados para comparar ou os grafos não foram carregados.
             </div>
-            <div v-else ref="vennContainer" id="venn-container"></div>
+            <div v-else :ref="'vennContainer'" id="venn-container"></div>
           </v-card-text>
         </v-card>
       </v-col>
     </v-row>
   </div>
 
-  <div ref="tooltip" class="venntooltip"></div>
+  <div :ref="'tooltip'" class="venntooltip"></div>
 </template>
 
-<script setup>
-// Importa nextTick
-import { ref, watch, defineProps, onMounted, nextTick } from "vue";
+<script>
+// Importações ficam fora do export default
 import * as d3 from "d3";
 import * as venn from "@upsetjs/venn.js";
+// Import nextTick para garantir acesso ao DOM após atualização
+import { nextTick } from 'vue';
 
-// --- LOG INICIAL ---
-console.log("[VENN DEBUG] Componente VennDiagram foi inicializado.");
-
-// --- Props ---
-const props = defineProps({
-  graph1_id: {
-    type: String,
-    required: true,
+export default {
+  name: "VennDiagram", // Boa prática adicionar um nome ao componente
+  props: {
+    graph1_id: {
+      type: String,
+      required: true,
+    },
+    graph2_id: {
+      type: String,
+      required: true,
+    },
   },
-  graph2_id: {
-    type: String,
-    required: true,
+  data() {
+    return {
+      loading: true,
+      setsData: [],
+      baseUrl: process.env.VUE_APP_API_BASE_URL,
+      nodesOnlyA: 0,
+      nodesOnlyB: 0,
+      nodesIntersection: 0,
+      totalNodesGraph1: 0,
+      totalNodesGraph2: 0,
+    };
   },
-});
+  watch: {
+    // Watchers movidos para a opção watch
+    graph1_id: {
+      handler: 'handleGraphIdChange', // Chama o método handleGraphIdChange
+      immediate: true, // Roda imediatamente na montagem
+    },
+    graph2_id: {
+      handler: 'handleGraphIdChange', // Chama o mesmo método
+      immediate: true,
+    },
+    setsData(newData) {
+      // console.log("[VENN DEBUG] Watcher de setsData ATIVADO. Novos dados (tamanho):", newData.length);
 
-// --- Refs do DOM ---
-const vennContainer = ref(null);
-const tooltip = ref(null);
+      if (this.loading) {
+        // console.log("[VENN DEBUG] Watcher setsData: Ainda carregando, não vai desenhar agora.");
+        return;
+      }
 
-// --- Estado Reativo ---
-const loading = ref(true);
-const setsData = ref([]);
-const baseUrl = process.env.VUE_APP_API_BASE_URL;
+      const hasDataToDraw =
+        this.nodesOnlyA > 0 ||
+        this.nodesOnlyB > 0 ||
+        this.nodesIntersection > 0;
 
-// --- NOVAS VARIÁVEIS REATIVAS PARA OS CARDS ---
-const nodesOnlyA = ref(0);
-const nodesOnlyB = ref(0);
-const nodesIntersection = ref(0);
-
-// --- LOG URL DA API ---
-console.log("[VENN DEBUG] URL Base da API:", baseUrl);
-
-/**
- * Busca os dados de um grafo e retorna um Map<string, NodeObject>.
- * @param {string} graphId - O ID do grafo a ser buscado.
- * @returns {Promise<Map<string, object>>} Um Map onde a chave é o ID do nodo e o valor é o objeto do nodo.
- */
-async function fetchGraphNodeIds(graphId) {
-  if (!graphId) {
-    console.warn(
-      "[VENN DEBUG] fetchGraphNodeIds chamado com ID nulo ou vazio."
-    );
-    return new Map();
-  }
-
-  const url = `${baseUrl}status/${graphId}`;
-  console.log(`[VENN DEBUG] Buscando Grafo ID: ${graphId} em ${url}`);
-
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(
-        `Erro HTTP ${response.status} ao buscar grafo ${graphId}`
-      );
+      if (newData && newData.length > 0 && hasDataToDraw) {
+        // Usa nextTick para garantir que o DOM (especificamente o v-else) foi atualizado
+        nextTick(() => {
+          // Acessa refs com this.$refs
+          if (this.$refs.vennContainer) {
+            // console.log("[VENN DEBUG] nextTick: Container está pronto. Chamando drawChart.");
+            this.drawChart(newData); // Chama o método drawChart
+          } else {
+            console.error(
+              "[VENN DEBUG] nextTick: ERRO GRAVE! Container ref AINDA é nulo após nextTick."
+            );
+          }
+        });
+      } else if (!this.loading) {
+        // console.log("[VENN DEBUG] Watcher setsData: Dados vazios ou zerados. Limpando SVG.");
+        // Limpa o SVG se não houver dados
+        nextTick(() => {
+           // Acessa refs com this.$refs
+           if (this.$refs.vennContainer) {
+             d3.select(this.$refs.vennContainer).selectAll("svg").remove();
+           }
+        });
+      }
     }
+  },
+  methods: {
+    // Funções movidas para methods
+    // Usar 'async' antes do nome da função
+    // Acessar estado e props com 'this.'
 
-    const data = await response.json();
-
-    console.log(`[VENN DEBUG] Resposta recebida para ${graphId}:`, data);
-
-    // Verificamos data.result.nodes
-    if (
-      data.result &&
-      data.result.nodes &&
-      typeof data.result.nodes === "object"
-    ) {
-      // Retorna um Map(ID, ObjetoDoNodo)
-      const nodeMap = new Map(Object.entries(data.result.nodes));
-      console.log(
-        `[VENN DEBUG] Sucesso! Grafo ${graphId} tem ${nodeMap.size} nodos.`
-      );
-      return nodeMap;
-    } else {
-      console.warn(
-        `[VENN DEBUG] Resposta para ${graphId} não continha 'data.result.nodes' ou não era um objeto.`
-      );
-      return new Map();
-    }
-  } catch (error) {
-    console.error(
-      `[VENN DEBUG] Falha ao buscar dados do grafo ${graphId}:`,
-      error
-    );
-    return new Map();
-  }
-}
-
-/**
- * Função principal para gerar os dados do diagrama.
- */
-async function generateDiagramData() {
-  console.log("[VENN DEBUG] generateDiagramData INICIADO.");
-  if (!props.graph1_id || !props.graph2_id) {
-    console.warn(
-      "[VENN DEBUG] generateDiagramData interrompido: IDs dos grafos estão faltando."
-    );
-    loading.value = false;
-    return;
-  }
-
-  loading.value = true;
-  setsData.value = [];
-  // Reseta as contagens
-  nodesOnlyA.value = 0;
-  nodesOnlyB.value = 0;
-  nodesIntersection.value = 0;
-
-  // Agora recebemos Maps (ID -> NodeObject)
-  const [nodesMap1, nodesMap2] = await Promise.all([
-    fetchGraphNodeIds(props.graph1_id),
-    fetchGraphNodeIds(props.graph2_id),
-  ]);
-
-  // Extrai os IDs para a lógica de Set
-  const ids1 = new Set(nodesMap1.keys());
-  const ids2 = new Set(nodesMap2.keys());
-
-  console.log("[VENN DEBUG] Set de IDs Grafo 1 (tamanho):", ids1.size);
-  console.log("[VENN DEBUG] Set de IDs Grafo 2 (tamanho):", ids2.size);
-
-  // Calcula as interseções (apenas com os IDs)
-  console.log("[VENN DEBUG] Calculando interseções...");
-  const intersectionIds = new Set([...ids1].filter(id => ids2.has(id)));
-  const onlyA_Ids = new Set([...ids1].filter(id => !ids2.has(id)));
-  const onlyB_Ids = new Set([...ids2].filter(id => !ids1.has(id)));
-
-  // --- ATUALIZA AS VARIÁVEIS DOS CARDS ---
-  nodesOnlyA.value = onlyA_Ids.size;
-  nodesOnlyB.value = onlyB_Ids.size;
-  nodesIntersection.value = intersectionIds.size;
-  // ----------------------------------------
-
-  console.log("[VENN DEBUG] Nodos Apenas no Grafo 1 (onlyA):", onlyA_Ids.size);
-  console.log("[VENN DEBUG] Nodos Apenas no Grafo 2 (onlyB):", onlyB_Ids.size);
-  console.log(
-    "[VENN DEBUG] Nodos em Comum (intersection):",
-    intersectionIds.size
-  );
-
-  // Helper para buscar o 'name' do nodo no Map, ou retornar o ID como fallback
-  const getNodeName = (map, id) => {
-    const node = map.get(id);
-    // Retorna o 'name' se existir e não for vazio, senão retorna o ID
-    //return node && node.name ? node.name : id;
-    return node.id;
-  };
-
-  // Monta os dados finais para o Venn, agora mapeando IDs para Nomes
-  const finalSets = [
-    {
-      sets: ["Grafo 1"],
-      size: onlyA_Ids.size,
-      nodes: [...onlyA_Ids].map(id => getNodeName(nodesMap1, id)),
-      label: "Grafo 1", // Rótulo simplificado
-    },
-    {
-      sets: ["Grafo 2"],
-      size: onlyB_Ids.size,
-      nodes: [...onlyB_Ids].map(id => getNodeName(nodesMap2, id)),
-      label: "Grafo 2", // Rótulo simplificado
-    },
-    {
-      sets: ["Grafo 1", "Grafo 2"],
-      size: intersectionIds.size,
-      nodes: [...intersectionIds].map(id => getNodeName(nodesMap1, id)), // Tanto faz map1 ou map2
-      label: "Interseção", // Rótulo simplificado
-    },
-  ];
-
-  console.log(
-    "[VENN DEBUG] Dados finais para o Venn.js:",
-    JSON.parse(JSON.stringify(finalSets))
-  );
-
-  setsData.value = finalSets;
-  loading.value = false;
-  console.log(
-    "[VENN DEBUG] generateDiagramData CONCLUÍDO. Loading set to false."
-  );
-}
-
-/**
- * Desenha o gráfico D3.
- */
-function drawChart(data) {
-  console.log(
-    "[VENN DEBUG] drawChart CHAMADO com:",
-    JSON.parse(JSON.stringify(data))
-  );
-
-  if (!data || data.length === 0) {
-    console.warn("[VENN DEBUG] drawChart interrompido: dados vazios.");
-    return;
-  }
-  if (!vennContainer.value) {
-    // Este log agora só deve aparecer se nextTick falhar
-    console.error(
-      "[VENN DEBUG] drawChart interrompido: container do Venn (ref) é NULO."
-    );
-    return;
-  }
-
-  // --- LOG DO CONTAINER ---
-  console.log(
-    "[VENN DEBUG] Container do Venn (Elemento DOM):",
-    vennContainer.value
-  );
-
-  const div = d3.select(vennContainer.value);
-  const tooltipEl = d3.select(tooltip.value);
-
-  div.selectAll("svg").remove();
-  console.log("[VENN DEBUG] SVG anterior removido (se existia).");
-
-  const chart = venn.VennDiagram().width(400).height(400);
-
-  const g = div.datum(data).call(chart);
-  console.log("[VENN DEBUG] venn.js .call(chart) executado.");
-
-  // Anexa os listeners de tooltip
-  g.selectAll("g")
-    .on("mouseover", function (event, d) {
-      let label = d.label || d.sets.join(" ∩ ");
-      let content = `<strong>${label}</strong><br>`;
-      content += `Tamanho (Nodos): ${d.size}<br><br>`;
-
-      if (d.nodes && d.nodes.length) {
-        const nodesToShow = d.nodes.slice(0, 20);
-        content += "<strong>Nodos:</strong><br>" + nodesToShow.join("<br>");
-        if (d.nodes.length > 20) {
-          content += `<br>...e mais ${d.nodes.length - 20} outros.`;
+    // Método chamado pelos watchers das props
+    handleGraphIdChange() {
+        // console.log("[VENN DEBUG] handleGraphIdChange chamado.");
+        // console.log("[VENN DEBUG] ID 1:", this.graph1_id);
+        // console.log("[VENN DEBUG] ID 2:", this.graph2_id);
+        if (this.graph1_id && this.graph2_id) {
+            this.generateDiagramData();
+        } else {
+            // console.warn("[VENN DEBUG] Watcher de Props: IDs não estão prontos.");
+            this.setsData = [];
+            this.loading = false;
+            this.nodesOnlyA = 0;
+            this.nodesOnlyB = 0;
+            this.nodesIntersection = 0;
+            this.totalNodesGraph1 = 0;
+            this.totalNodesGraph2 = 0;
         }
-      } else {
-        content += "<strong>Nodos:</strong> (Nenhum)";
-      }
+    },
 
-      tooltipEl.html(content);
-      tooltipEl.style("display", "block").style("opacity", 1);
-    })
-    .on("mousemove", function (event) {
-      tooltipEl.style("left", event.pageX + 15 + "px");
-      tooltipEl.style("top", event.pageY - 10 + "px");
-    })
-    .on("mouseout", function () {
-      tooltipEl.style("opacity", 0).style("display", "none");
-    });
-
-  console.log("[VENN DEBUG] Listeners de Tooltip anexados.");
-}
-
-// --- Watchers (Observadores) ---
-
-// 1. Observa as 'props' (graph1_id, graph2_id).
-watch(
-  [() => props.graph1_id, () => props.graph2_id],
-  (newIds, oldIds) => {
-    // --- LOG DO WATCHER DE PROPS ---
-    console.log("[VENN DEBUG] Watcher de Props ATIVADO.");
-    console.log(
-      "[VENN DEBUG] ID 1 (novo):",
-      newIds[0],
-      "| (antigo):",
-      oldIds ? oldIds[0] : "N/A"
-    );
-    console.log(
-      "[VENN DEBUG] ID 2 (novo):",
-      newIds[1],
-      "| (antigo):",
-      oldIds ? oldIds[1] : "N/A"
-    );
-
-    if (newIds[0] && newIds[1]) {
-      generateDiagramData();
-    } else {
-      console.warn("[VENN DEBUG] Watcher de Props: IDs não estão prontos.");
-      setsData.value = []; // Limpa se os IDs desaparecerem
-      loading.value = false;
-      // Reseta contagens se IDs sumirem
-      nodesOnlyA.value = 0;
-      nodesOnlyB.value = 0;
-      nodesIntersection.value = 0;
-    }
-  },
-  { immediate: true } // Roda imediatamente
-);
-
-// 2. Observa a variável 'setsData'.
-watch(setsData, newData => {
-  // --- LOG DO WATCHER DE DADOS ---
-  console.log(
-    "[VENN DEBUG] Watcher de setsData ATIVADO. Novos dados (tamanho):",
-    newData.length
-  );
-
-  if (loading.value) {
-    console.log(
-      "[VENN DEBUG] Watcher setsData: Ainda carregando, não vai desenhar agora."
-    );
-    return;
-  }
-
-  // Verifica se há dados E se os totais não são todos zero
-  const hasDataToDraw =
-    nodesOnlyA.value > 0 ||
-    nodesOnlyB.value > 0 ||
-    nodesIntersection.value > 0;
-
-  if (newData && newData.length > 0 && hasDataToDraw) {
-    // ------ USA O nextTick AQUI ------
-    nextTick(() => {
-      if (vennContainer.value) {
-        console.log("[VENN DEBUG] nextTick: Container está pronto. Chamando drawChart.");
-        drawChart(newData);
-      } else {
-        console.error(
-          "[VENN DEBUG] nextTick: ERRO GRAVE! Container ref AINDA é nulo após nextTick."
+    async fetchGraphNodeData(graphId) {
+      if (!graphId) {
+        console.warn(
+          "[VENN DEBUG] fetchGraphNodeData chamado com ID nulo ou vazio."
         );
+        return new Map();
       }
-    });
-    // ---------------------------------
-  } else if (!loading.value) {
-    console.log(
-      "[VENN DEBUG] Watcher setsData: Dados vazios ou zerados. Limpando SVG."
-    );
-    // Mesmo aqui, é mais seguro usar nextTick se o SVG foi removido
-    nextTick(() => {
-       if (vennContainer.value) { // Verifica se o container ainda existe
-         d3.select(vennContainer.value).selectAll("svg").remove();
-       }
-    });
-  }
-});
 
-onMounted(() => {
-  // --- LOG DE MONTAGEM ---
-  console.log("[VENN DEBUG] Componente VennDiagram MONTADO (onMounted).");
-  console.log("[VENN DEBUG] Container ref no onMounted:", vennContainer.value);
-});
+      const url = `${this.baseUrl}status/${graphId}`; // Usa this.baseUrl
+      // console.log(`[VENN DEBUG] Buscando Grafo ID: ${graphId} em ${url}`);
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(
+            `Erro HTTP ${response.status} ao buscar grafo ${graphId}`
+          );
+        }
+
+        const data = await response.json();
+        // console.log(`[VENN DEBUG] Resposta recebida para ${graphId}:`, data);
+
+        if (
+          data.result &&
+          data.result.nodes &&
+          typeof data.result.nodes === "object"
+        ) {
+          const nodeMap = new Map(Object.entries(data.result.nodes));
+          // console.log(`[VENN DEBUG] Sucesso! Grafo ${graphId} tem ${nodeMap.size} nodos.`);
+          return nodeMap;
+        } else {
+          console.warn(
+            `[VENN DEBUG] Resposta para ${graphId} não continha 'data.result.nodes' ou não era um objeto.`
+          );
+          return new Map();
+        }
+      } catch (error) {
+        console.error(
+          `[VENN DEBUG] Falha ao buscar dados do grafo ${graphId}:`,
+          error
+        );
+        return new Map();
+      }
+    },
+
+    async generateDiagramData() {
+      // console.log("[VENN DEBUG] generateDiagramData INICIADO.");
+      // Acessa props com this.
+      if (!this.graph1_id || !this.graph2_id) {
+        console.warn(
+          "[VENN DEBUG] generateDiagramData interrompido: IDs dos grafos estão faltando."
+        );
+        this.loading = false; // Usa this.loading
+        return;
+      }
+
+      this.loading = true;
+      this.setsData = []; 
+      this.nodesOnlyA = 0;
+      this.nodesOnlyB = 0;
+      this.nodesIntersection = 0; 
+      this.totalNodesGraph1 = 0;
+      this.totalNodesGraph2 = 0;
+
+      const [nodesMap1, nodesMap2] = await Promise.all([
+        this.fetchGraphNodeData(this.graph1_id), 
+        this.fetchGraphNodeData(this.graph2_id), 
+      ]);
+
+      this.totalNodesGraph1 = nodesMap1.size;
+      this.totalNodesGraph2 = nodesMap2.size;
+
+      const ids1 = new Set(nodesMap1.keys());
+      const ids2 = new Set(nodesMap2.keys());
+
+      // console.log("[VENN DEBUG] Set de IDs Grafo 1 (tamanho):", ids1.size);
+      // console.log("[VENN DEBUG] Set de IDs Grafo 2 (tamanho):", ids2.size);
+
+      const intersectionIds = new Set([...ids1].filter(id => ids2.has(id)));
+      const onlyA_Ids = new Set([...ids1].filter(id => !ids2.has(id)));
+      const onlyB_Ids = new Set([...ids2].filter(id => !ids1.has(id)));
+
+      this.nodesOnlyA = onlyA_Ids.size; // Usa this.
+      this.nodesOnlyB = onlyB_Ids.size; // Usa this.
+      this.nodesIntersection = intersectionIds.size; // Usa this.
+
+      // console.log("[VENN DEBUG] Nodos Apenas no Grafo 1 (onlyA):", this.nodesOnlyA);
+      // console.log("[VENN DEBUG] Nodos Apenas no Grafo 2 (onlyB):", this.nodesOnlyB);
+      // console.log("[VENN DEBUG] Nodos em Comum (intersection):", this.nodesIntersection);
+
+      // getNodeName pode ser um método auxiliar ou permanecer interno
+      const getNodeName = (map, id) => {
+        const node = map.get(id);
+        return node && node.name ? node.name : id;
+      };
+
+      const finalSets = [
+        {
+          sets: ["Grafo 1"],
+          size: this.nodesOnlyA,
+          nodes: [...onlyA_Ids].map(id => getNodeName(nodesMap1, id)),
+          label: "Grafo 1",
+        },
+        {
+          sets: ["Grafo 2"],
+          size: this.nodesOnlyB,
+          nodes: [...onlyB_Ids].map(id => getNodeName(nodesMap2, id)),
+          label: "Grafo 2",
+        },
+        {
+          sets: ["Grafo 1", "Grafo 2"],
+          size: this.nodesIntersection,
+          nodes: [...intersectionIds].map(id => getNodeName(nodesMap1, id)),
+          label: "Interseção",
+        },
+      ];
+
+      // console.log("[VENN DEBUG] Dados finais para o Venn.js:", JSON.parse(JSON.stringify(finalSets)));
+
+      this.setsData = finalSets;
+      this.loading = false;
+      // console.log("[VENN DEBUG] generateDiagramData CONCLUÍDO. Loading set to false.");
+    },
+
+    drawChart(data) {
+      // console.log("[VENN DEBUG] drawChart CHAMADO com:", JSON.parse(JSON.stringify(data)));
+
+      if (!data || data.length === 0) return;
+      // Acessa refs com this.$refs
+      if (!this.$refs.vennContainer) {
+          console.error("[VENN DEBUG] drawChart: container do Venn ($refs) é NULO.");
+          return;
+      }
+
+      // console.log("[VENN DEBUG] Container do Venn ($refs):", this.$refs.vennContainer);
+
+      // Acessa refs com this.$refs
+      const div = d3.select(this.$refs.vennContainer);
+      const tooltipEl = d3.select(this.$refs.tooltip);
+
+      div.selectAll("svg").remove();
+      // console.log("[VENN DEBUG] SVG anterior removido (se existia).");
+
+      const chart = venn.VennDiagram().width(500).height(450);
+      const g = div.datum(data).call(chart);
+      // console.log("[VENN DEBUG] venn.js .call(chart) executado.");
+
+      // Correção de Posição
+      const circleGroups = g.selectAll("g.venn-circle")
+          .filter(d => d.sets.length === 1);
+      let group1 = null;
+      let group2 = null;
+      circleGroups.each(function(d) {
+          const selection = d3.select(this);
+          if (d.sets.includes("Grafo 1")) group1 = { element: selection, data: d };
+          else if (d.sets.includes("Grafo 2")) group2 = { element: selection, data: d };
+      });
+
+      if (group1 && group2 && group1.data.x > group2.data.x) {
+          const transform1 = group1.element.attr("transform");
+          const transform2 = group2.element.attr("transform");
+          group1.element.attr("transform", transform2);
+          group2.element.attr("transform", transform1);
+          group1.element.select("text").style("fill", "#ff7f0e");
+          group2.element.select("text").style("fill", "#1f77b4");
+      } else {
+           if (group1) group1.element.select("text").style("fill", "#1f77b4");
+           if (group2) group2.element.select("text").style("fill", "#ff7f0e");
+      }
+       g.selectAll("g.venn-intersection").select("text").style("fill", "#555");
+
+      // Tooltips
+      g.selectAll("g")
+        .on("mouseover", function (event, d) {
+          let label = d.label || d.sets.join(" ∩ ");
+          let content = `<strong>${label}</strong><br>`;
+          content += `Tamanho (Nodos): ${d.size}<br><br>`;
+          if (d.nodes && d.nodes.length) {
+            const nodesToShow = d.nodes.slice(0, 20);
+            content += "<strong>Nodos:</strong><br>" + nodesToShow.join("<br>");
+            if (d.nodes.length > 20) {
+              content += `<br>...e mais ${d.nodes.length - 20} outros.`;
+            }
+          } else {
+            content += "<strong>Nodos:</strong> (Nenhum)";
+          }
+          tooltipEl.html(content);
+          tooltipEl.style("display", "block").style("opacity", 1);
+        })
+        .on("mousemove", function (event) {
+          tooltipEl.style("left", event.pageX + 15 + "px");
+          tooltipEl.style("top", event.pageY - 10 + "px");
+        })
+        .on("mouseout", function () {
+          tooltipEl.style("opacity", 0).style("display", "none");
+        });
+
+      // console.log("[VENN DEBUG] Listeners de Tooltip anexados.");
+    },
+  },
+  // mounted() { // O mounted não é estritamente necessário aqui por causa do immediate:true nos watchers
+    // console.log("[VENN DEBUG] Componente VennDiagram MONTADO (mounted).");
+    // console.log("[VENN DEBUG] Container ref no mounted:", this.$refs.vennContainer);
+  // },
+};
 </script>
 
 <style>

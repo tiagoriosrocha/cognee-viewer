@@ -1,9 +1,5 @@
-<!-- Página do Dashboard principal -->
-<!-- Esta página contém a funcionalidade principal de análise de perguntas -->
-
 <template>
   <v-container fluid class="pa-6">
-    <!-- Cabeçalho da página -->
     <v-row class="mb-4">
       <v-col cols="12">
         <h1 class="text-h4 font-weight-bold text-center">
@@ -15,7 +11,6 @@
 
     <v-divider class="my-6" />
 
-    <!-- Tabela de Perguntas -->
     <v-expand-transition>
       <v-row v-if="!selectedItem" class="mb-6">
         <v-col cols="12">
@@ -40,7 +35,6 @@
       </v-row>
     </v-expand-transition>
 
-    <!-- Detalhes do Item Selecionado -->
     <v-row v-if="selectedItem" class="mb-6">
       <v-col cols="12">
         <v-card class="pa-4" outlined>
@@ -58,7 +52,6 @@
       </v-col>
     </v-row>
 
-    <!-- Mensagem caso nenhum item seja selecionado -->
     <v-row v-else class="mb-6">
       <v-col cols="12">
         <v-card class="pa-4" outlined>
@@ -71,27 +64,23 @@
 
     <v-divider class="my-6" />
 
-    <!-- Painéis de Processamento -->
     <v-row v-if="selectedItem">
       <v-col cols="12" md="6">
         <ProcessingDashboard
           :selectedItem="selectedItem"
-          @graph_id="addToGraphIds"
-        />
+          :panel-position="'left'" @graph_id="id => addToGraphIds(id, 'left')" />
       </v-col>
 
       <v-col cols="12" md="6">
         <ProcessingDashboard
           :selectedItem="selectedItem"
-          @graph_id="addToGraphIds"
-        />
+          :panel-position="'right'" @graph_id="id => addToGraphIds(id, 'right')" />
       </v-col>
     </v-row>
 
-    <!-- Painel de Comparação -->
     <v-row v-if="exibirComparePanel">
-      <v-col cols="12">     
-        <VennDiagram :graph1_id="graphIds[0]" :graph2_id="graphIds[1]" />
+      <v-col cols="12">
+        <VennDiagram :graph1_id="graphIdLeft" :graph2_id="graphIdRight" />
       </v-col>
     </v-row>
   </v-container>
@@ -132,8 +121,9 @@ export default {
         { title: "Tipo de Raciocínio", align: "start", key: "reasoning_type" },
       ],
 
-      // IDs dos grafos para comparação
-      graphIds: [],
+      // IDs dos grafos para comparação (sempre os 2 últimos)
+      graphIdLeft: null,
+      graphIdRight: null,
 
       // Controla se o painel de comparação deve ser exibido
       exibirComparePanel: false,
@@ -146,33 +136,57 @@ export default {
   methods: {
     // Método para selecionar um item da tabela
     selectItem(event, { item }) {
-      this.selectedItem = item.raw || item || null;
+      const newItem = item.raw || item || null;
+      if (
+        newItem &&
+        (!this.selectedItem || this.selectedItem._id !== newItem._id)
+      ) {
+        // Limpa os IDs específicos ao mudar de item
+        this.graphIdLeft = null;
+        this.graphIdRight = null;
+        this.exibirComparePanel = false;
+        console.log("Nova seleção, limpando comparação anterior.");
+      }
+      this.selectedItem = newItem;
       console.log("Item selecionado:", this.selectedItem);
     },
 
     // Método para limpar a seleção
     clearSelection() {
       this.selectedItem = null;
-      this.graphIds = [];
+      // Limpa os IDs específicos
+      this.graphIdLeft = null;
+      this.graphIdRight = null;
       this.exibirComparePanel = false;
+      console.log("Seleção limpa.");
     },
 
     // Método para definir propriedades das linhas da tabela
     rowProps({ item }) {
-      const isMatch = this.selectedItem && this.selectedItem._id === item._id;
+      const currentId = item.value || item._id;
+      const isMatch = this.selectedItem && this.selectedItem._id === currentId;
       return { class: isMatch ? "selected-row" : "" };
     },
 
-    // Método para adicionar ID de grafo à lista de comparação
-    addToGraphIds(receivedId) {
-      this.graphIds.push(receivedId);
-      console.log("Novo ID adicionado:", receivedId);
-      console.log("Vetor atual:", this.graphIds);
+    // Método para adicionar ID de grafo, mantendo apenas os 2 últimos
+    addToGraphIds(receivedId, position) {
+      if (position === 'left') {
+        this.graphIdLeft = receivedId;
+        console.log("Atualizado ID Esquerdo:", receivedId);
+      } else if (position === 'right') {
+        this.graphIdRight = receivedId;
+        console.log("Atualizado ID Direito:", receivedId);
+      }
 
-      // Se temos 2 grafos, mostrar o painel de comparação
-      if (this.graphIds.length === 2) {
+      console.log(`IDs Atuais: Esquerdo=${this.graphIdLeft}, Direito=${this.graphIdRight}`);
+
+      // Mostra o painel de comparação APENAS se ambos os IDs estiverem definidos
+      if (this.graphIdLeft && this.graphIdRight) {
         this.exibirComparePanel = true;
-        console.log("Exibir painel de comparação");
+        console.log("Ambos IDs presentes. Exibir/Atualizar painel de comparação");
+      } else {
+        this.exibirComparePanel = false;
+        console.log("Falta um ou ambos os IDs. Esconder painel de comparação.");
       }
     },
   },
@@ -182,8 +196,13 @@ export default {
 <style scoped>
 /* Estilos específicos do dashboard */
 .selected-row {
-  background-color: #07f04d !important;
+  background-color: #07f04d !important; /* Verde vibrante */
   font-weight: bold !important;
+  color: black !important;
+}
+
+/* Garante que a cor do texto seja legível no fundo verde */
+.selected-row td {
   color: black !important;
 }
 </style>

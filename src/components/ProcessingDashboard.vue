@@ -227,6 +227,11 @@ export default {
       type: Object,
       default: null,
     },
+    panelPosition: {
+        type: String,
+        required: true, // Ou false se preferir, mas true é mais seguro
+        validator: (value) => ['left', 'right'].includes(value) // Garante que seja 'left' ou 'right'
+    }
   },
   emits: ["graph_id"],
   data() {
