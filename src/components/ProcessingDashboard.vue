@@ -47,9 +47,9 @@
         <v-card-title class="text-h6 font-weight-medium">
           Resposta Final:
         </v-card-title>
-        <v-card-text class="card-text-scroll-answer">{{
-          processedAnswer
-        }}</v-card-text>
+        <v-card-text class="card-text-scroll-answer">
+          {{ processedAnswer }}
+        </v-card-text>
       </v-card>
     </v-col>
   </v-row>
@@ -94,12 +94,14 @@
           <div v-if="selectedNode">
             <v-list dense>
               <v-list-item v-for="(value, key) in selectedNode" :key="key">
-                <v-list-item-title
-                  ><strong>{{ key }}:</strong></v-list-item-title
-                >
-                <v-list-item-subtitle class="wrap-text">{{
-                  typeof value === "object" ? JSON.stringify(value) : value
-                }}</v-list-item-subtitle>
+                <v-list-item-title>
+                  <strong>{{ key }}:</strong>
+                </v-list-item-title>
+                <v-list-item-subtitle class="wrap-text">
+                  {{
+                    typeof value === "object" ? JSON.stringify(value) : value
+                  }}
+                </v-list-item-subtitle>
               </v-list-item>
             </v-list>
           </div>
@@ -226,7 +228,7 @@ export default {
       default: null,
     },
   },
-
+  emits: ["graph_id"],
   data() {
     return {
       // ID da tarefa de processamento no servidor

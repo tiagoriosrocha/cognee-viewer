@@ -92,6 +92,7 @@
     <v-row v-if="exibirComparePanel">
       <v-col cols="12">
         <CompareGraphs :graph1_id="graphIds[0]" :graph2_id="graphIds[1]" />
+        <VennDiagram :graph1_id="graphIds[0]" :graph2_id="graphIds[1]" />
       </v-col>
     </v-row>
   </v-container>
@@ -105,6 +106,7 @@ import dataset from "../dataset.json";
 import QuestionDetails from "../components/QuestionDetails.vue";
 import ProcessingDashboard from "../components/ProcessingDashboard.vue";
 import CompareGraphs from "../components/CompareGraphs.vue";
+import VennDiagram from "@/components/VennDiagram.vue";
 
 export default {
   name: "DashboardView",
@@ -114,6 +116,7 @@ export default {
     QuestionDetails,
     ProcessingDashboard,
     CompareGraphs,
+    VennDiagram,
   },
 
   data() {

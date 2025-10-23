@@ -1,10 +1,8 @@
 <template>
   <v-container>
     <v-card class="pa-4">
-      <v-card-title class="headline text-h5">
-        Comparação de Grafos
-      </v-card-title>
-      <v-card-subtitle> Análise dos nós em comum e únicos. </v-card-subtitle>
+      <v-card-title class="headline text-h5">Comparação de Grafos</v-card-title>
+      <v-card-subtitle>Análise dos nós em comum e únicos.</v-card-subtitle>
 
       <v-row v-if="nodeQuantities.length > 0" class="mb-4">
         <v-col
@@ -180,7 +178,7 @@ export default {
       }
     },
     processResultData(result) {
-      this.nodeQuantities = result.node_categorization.map((categoryObj) => {
+      this.nodeQuantities = result.node_categorization.map(categoryObj => {
         const [key] = Object.keys(categoryObj);
         const count = categoryObj[key].length;
         const formattedName = this.formatCategoryName(key);
