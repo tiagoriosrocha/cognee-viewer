@@ -1,36 +1,91 @@
 <template>
-  <v-card class="pa-4" outlined>
+  <v-card class="pa-4 mb-4" outlined>
     <v-card-title class="text-h6 font-weight-medium">
-      Comparação de Nodos do Grafo
+      Comparação de Grafos
     </v-card-title>
-    <v-card-text
-      class="d-flex align-center justify-center"
-      style="min-height: 450px"
-    >
-      <div v-if="loading" class="text-center">
-        <v-progress-circular
-          indeterminate
-          color="primary"
-          size="64"
-        ></v-progress-circular>
-        <p class="mt-4 text-medium-emphasis">Buscando e comparando grafos...</p>
-      </div>
-
-      <div v-show="!loading" ref="vennContainer" id="venn-container"></div>
-
-      <div v-if="!loading && (!setsData || setsData.length === 0)">
-        <p class="text-medium-emphasis">
-          Não foi possível carregar ou processar os dados dos grafos.
-        </p>
-      </div>
-    </v-card-text>
   </v-card>
+
+  <div
+    v-if="loading"
+    class="text-center d-flex flex-column align-center justify-center"
+    style="min-height: 450px"
+  >
+    <v-progress-circular
+      indeterminate
+      color="primary"
+      size="64"
+    ></v-progress-circular>
+    <p class="mt-4 text-medium-emphasis">Buscando e comparando grafos...</p>
+  </div>
+
+  <div v-else>
+    <v-row class="mb-4">
+      <v-col cols="12" md="4">
+        <v-card outlined>
+          <v-card-title class="text-subtitle-1">
+            Nós Únicos - Grafo 1
+          </v-card-title>
+          <v-card-text class="text-h4 text-center pa-4">
+            {{ nodesOnlyA }}
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" md="4">
+        <v-card outlined>
+          <v-card-title class="text-subtitle-1"> Nós em Comum </v-card-title>
+          <v-card-text class="text-h4 text-center pa-4">
+            {{ nodesIntersection }}
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" md="4">
+        <v-card outlined>
+          <v-card-title class="text-subtitle-1">
+            Nós Únicos - Grafo 2
+          </v-card-title>
+          <v-card-text class="text-h4 text-center pa-4">
+            {{ nodesOnlyB }}
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <v-row>
+      <v-col cols="12">
+        <v-card class="pa-4" outlined>
+          <v-card-title class="text-h6"> Diagrama de Venn </v-card-title>
+          <v-card-text
+            class="d-flex align-center justify-center"
+            style="min-height: 450px"
+          >
+            <div
+              v-if="
+                !setsData ||
+                setsData.length === 0 ||
+                (nodesOnlyA === 0 &&
+                  nodesOnlyB === 0 &&
+                  nodesIntersection === 0)
+              "
+              class="text-medium-emphasis"
+            >
+              Não há dados para comparar. (Ambos os grafos podem ser vazios ou
+              idênticos).
+            </div>
+            <div v-else ref="vennContainer" id="venn-container"></div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+  </div>
 
   <div ref="tooltip" class="venntooltip"></div>
 </template>
 
 <script setup>
-import { ref, watch, defineProps, onMounted } from "vue";
+// Importa nextTick
+import { ref, watch, defineProps, onMounted, nextTick } from "vue";
 import * as d3 from "d3";
 import * as venn from "@upsetjs/venn.js";
 
@@ -58,11 +113,18 @@ const loading = ref(true);
 const setsData = ref([]);
 const baseUrl = process.env.VUE_APP_API_BASE_URL;
 
+// --- NOVAS VARIÁVEIS REATIVAS PARA OS CARDS ---
+const nodesOnlyA = ref(0);
+const nodesOnlyB = ref(0);
+const nodesIntersection = ref(0);
+
 // --- LOG URL DA API ---
 console.log("[VENN DEBUG] URL Base da API:", baseUrl);
 
 /**
- * Busca os dados de um grafo e retorna um Set com os IDs dos nodos.
+ * Busca os dados de um grafo e retorna um Map<string, NodeObject>.
+ * @param {string} graphId - O ID do grafo a ser buscado.
+ * @returns {Promise<Map<string, object>>} Um Map onde a chave é o ID do nodo e o valor é o objeto do nodo.
  */
 async function fetchGraphNodeIds(graphId) {
   if (!graphId) {
@@ -129,6 +191,10 @@ async function generateDiagramData() {
 
   loading.value = true;
   setsData.value = [];
+  // Reseta as contagens
+  nodesOnlyA.value = 0;
+  nodesOnlyB.value = 0;
+  nodesIntersection.value = 0;
 
   // Agora recebemos Maps (ID -> NodeObject)
   const [nodesMap1, nodesMap2] = await Promise.all([
@@ -149,6 +215,12 @@ async function generateDiagramData() {
   const onlyA_Ids = new Set([...ids1].filter(id => !ids2.has(id)));
   const onlyB_Ids = new Set([...ids2].filter(id => !ids1.has(id)));
 
+  // --- ATUALIZA AS VARIÁVEIS DOS CARDS ---
+  nodesOnlyA.value = onlyA_Ids.size;
+  nodesOnlyB.value = onlyB_Ids.size;
+  nodesIntersection.value = intersectionIds.size;
+  // ----------------------------------------
+
   console.log("[VENN DEBUG] Nodos Apenas no Grafo 1 (onlyA):", onlyA_Ids.size);
   console.log("[VENN DEBUG] Nodos Apenas no Grafo 2 (onlyB):", onlyB_Ids.size);
   console.log(
@@ -160,8 +232,8 @@ async function generateDiagramData() {
   const getNodeName = (map, id) => {
     const node = map.get(id);
     // Retorna o 'name' se existir e não for vazio, senão retorna o ID
-    return node.id;
     //return node && node.name ? node.name : id;
+    return node.id;
   };
 
   // Monta os dados finais para o Venn, agora mapeando IDs para Nomes
@@ -212,6 +284,7 @@ function drawChart(data) {
     return;
   }
   if (!vennContainer.value) {
+    // Este log agora só deve aparecer se nextTick falhar
     console.error(
       "[VENN DEBUG] drawChart interrompido: container do Venn (ref) é NULO."
     );
@@ -293,6 +366,10 @@ watch(
       console.warn("[VENN DEBUG] Watcher de Props: IDs não estão prontos.");
       setsData.value = []; // Limpa se os IDs desaparecerem
       loading.value = false;
+      // Reseta contagens se IDs sumirem
+      nodesOnlyA.value = 0;
+      nodesOnlyB.value = 0;
+      nodesIntersection.value = 0;
     }
   },
   { immediate: true } // Roda imediatamente
@@ -313,25 +390,35 @@ watch(setsData, newData => {
     return;
   }
 
-  if (newData && newData.length > 0) {
-    // Garante que o DOM esteja pronto antes de desenhar
-    // (embora o 'onMounted' cuide disso na primeira carga)
-    if (vennContainer.value) {
-      drawChart(newData);
-    } else {
-      // Se o container não estiver pronto, espera o 'tick'
-      console.warn(
-        "[VENN DEBUG] Watcher setsData: dados prontos, mas o container ref ainda não. Esperando próximo tick..."
-      );
-      // Em <script setup>, podemos usar nextTick, mas geralmente o watcher de props
-      // (que roda 'immediate') já garante que 'onMounted' rode antes.
-      // Vamos confiar que o 'onMounted' já rodou.
-    }
+  // Verifica se há dados E se os totais não são todos zero
+  const hasDataToDraw =
+    nodesOnlyA.value > 0 ||
+    nodesOnlyB.value > 0 ||
+    nodesIntersection.value > 0;
+
+  if (newData && newData.length > 0 && hasDataToDraw) {
+    // ------ USA O nextTick AQUI ------
+    nextTick(() => {
+      if (vennContainer.value) {
+        console.log("[VENN DEBUG] nextTick: Container está pronto. Chamando drawChart.");
+        drawChart(newData);
+      } else {
+        console.error(
+          "[VENN DEBUG] nextTick: ERRO GRAVE! Container ref AINDA é nulo após nextTick."
+        );
+      }
+    });
+    // ---------------------------------
   } else if (!loading.value) {
     console.log(
-      "[VENN DEBUG] Watcher setsData: Dados vazios e não está carregando. Limpando SVG."
+      "[VENN DEBUG] Watcher setsData: Dados vazios ou zerados. Limpando SVG."
     );
-    d3.select(vennContainer.value).selectAll("svg").remove();
+    // Mesmo aqui, é mais seguro usar nextTick se o SVG foi removido
+    nextTick(() => {
+       if (vennContainer.value) { // Verifica se o container ainda existe
+         d3.select(vennContainer.value).selectAll("svg").remove();
+       }
+    });
   }
 });
 
